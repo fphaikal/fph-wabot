@@ -249,11 +249,10 @@ async function startHisoka() {
         startHisoka();
       }
     } else if (connection === "open") {
-      const botNumber = await client.decodeJid(client.user.id);
       console.log(color("Bot success conneted to server", "green"));
       console.log(color("Donate for creator https://saweria.co/sansekai", "yellow"));
       console.log(color("Type /menu to see menu"));
-      client.sendMessage(botNumber, { text: `Bot started!\n\njangan lupa support ya bang :)\n${donet}` });
+      client.sendMessage('6285765909380@s.whatsapp.net', { text: `Bot started!` });
     }
     // console.log('Connected...', update)
   });

@@ -15,30 +15,33 @@ const chalk = require("chalk");
 const OpenAI = require("openai");
 let setting = require("./key.json");
 const openai = new OpenAI({ apiKey: setting.keyopenai });
+const { setTimeout } = require("timers/promises");
+const axios = require("axios");
+const formatLongDate = require('./utils/getTime');
 
-const { searchStudent } = require('./feature/smtiHandler');
+const { searchStudent, searchOnsite } = require('./feature/smtiHandler');
 module.exports = sansekai = async (client, m, chatUpdate) => {
   try {
     var body =
       m.mtype === "conversation"
         ? m.message.conversation
         : m.mtype == "imageMessage"
-        ? m.message.imageMessage.caption
-        : m.mtype == "videoMessage"
-        ? m.message.videoMessage.caption
-        : m.mtype == "extendedTextMessage"
-        ? m.message.extendedTextMessage.text
-        : m.mtype == "buttonsResponseMessage"
-        ? m.message.buttonsResponseMessage.selectedButtonId
-        : m.mtype == "listResponseMessage"
-        ? m.message.listResponseMessage.singleSelectReply.selectedRowId
-        : m.mtype == "templateButtonReplyMessage"
-        ? m.message.templateButtonReplyMessage.selectedId
-        : m.mtype === "messageContextInfo"
-        ? m.message.buttonsResponseMessage?.selectedButtonId ||
-          m.message.listResponseMessage?.singleSelectReply.selectedRowId ||
-          m.text
-        : "";
+          ? m.message.imageMessage.caption
+          : m.mtype == "videoMessage"
+            ? m.message.videoMessage.caption
+            : m.mtype == "extendedTextMessage"
+              ? m.message.extendedTextMessage.text
+              : m.mtype == "buttonsResponseMessage"
+                ? m.message.buttonsResponseMessage.selectedButtonId
+                : m.mtype == "listResponseMessage"
+                  ? m.message.listResponseMessage.singleSelectReply.selectedRowId
+                  : m.mtype == "templateButtonReplyMessage"
+                    ? m.message.templateButtonReplyMessage.selectedId
+                    : m.mtype === "messageContextInfo"
+                      ? m.message.buttonsResponseMessage?.selectedButtonId ||
+                      m.message.listResponseMessage?.singleSelectReply.selectedRowId ||
+                      m.text
+                      : "";
     var budy = typeof m.text == "string" ? m.text : "";
     // var prefix = /^[\\/!#.]/gi.test(body) ? body.match(/^[\\/!#.]/gi) : "/"
     var prefix = /^[\\/!#.]/gi.test(body) ? body.match(/^[\\/!#.]/gi) : "/";
@@ -51,7 +54,7 @@ module.exports = sansekai = async (client, m, chatUpdate) => {
       .toLowerCase();
     const args = body.trim().split(/ +/).slice(1);
     const pushname = m.pushName || "No Name";
-    const botNumber = await client.decodeJid(client.user.id);
+    const botNumber = '6285765909380@s.whatsapp.net';
     const itsMe = m.sender == botNumber ? true : false;
     let text = (q = args.join(" "));
     const arg = budy.trim().substring(budy.indexOf(" ") + 1);
@@ -68,9 +71,10 @@ module.exports = sansekai = async (client, m, chatUpdate) => {
 
     // Group
     const groupMetadata = m.isGroup
-      ? await client.groupMetadata(m.chat).catch((e) => {})
+      ? await client.groupMetadata(m.chat).catch((e) => { })
       : "";
     const groupName = m.isGroup ? groupMetadata.subject : "";
+    const groupId = m.isGroup ? groupMetadata.id : "";
 
     // Push Message To Console
     let argsLog = budy.length > 30 ? `${q.substring(0, 30)}...` : budy;
@@ -91,7 +95,8 @@ module.exports = sansekai = async (client, m, chatUpdate) => {
         chalk.green(pushname),
         chalk.yellow(`[ ${m.sender.replace("@s.whatsapp.net", "")} ]`),
         chalk.blueBright("IN"),
-        chalk.green(groupName)
+        chalk.green(groupName),
+        chalk.green(groupId)
       );
     } else if (!isCmd2 && m.isGroup) {
       console.log(
@@ -101,7 +106,8 @@ module.exports = sansekai = async (client, m, chatUpdate) => {
         chalk.green(pushname),
         chalk.yellow(`[ ${m.sender.replace("@s.whatsapp.net", "")} ]`),
         chalk.blueBright("IN"),
-        chalk.green(groupName)
+        chalk.green(groupName),
+        chalk.green(groupId)
       );
     } else if (!isCmd2 && !m.isGroup) {
       console.log(
@@ -166,17 +172,25 @@ Menampilkan source code bot yang dipakai`);
         case "sc":
         case "script":
         case "scbot":
-          if (m && m.message && m.message.text) {
-            // Your code here
-            client.sendMessage(from, "Bot ini menggunakan script dari FPH");
-          } else {
-            console.log('Message object or text property is undefined.');
-          }
+          client.sendMessage(from, { text: "Bot ini menggunakan script dari FPH" });
           break;
         // Custom Message
         case "smti":
           try {
             const { message, error } = await searchStudent(q);
+            if (message) {
+              await m.reply(message);
+            } else {
+              await m.reply(error);
+            }
+          } catch (error) {
+            console.log(error);
+            m.reply("Maaf, sepertinya ada yang error :" + error.message);
+          }
+          break;
+        case "onsite":
+          try {
+            const { message, error } = await searchOnsite(q);
             if (message) {
               await m.reply(message);
             } else {
@@ -193,7 +207,7 @@ Menampilkan source code bot yang dipakai`);
             if (m.isBaileys) return;
             if (!budy.toLowerCase()) return;
             if (argsLog || (isCmd2 && !m.isGroup)) {
-              // client.sendReadReceipt(m.chat, m.sender, [m.key.id])
+              //client.sendReadReceipt(m.chat, m.sender, [m.key.id])
               console.log(
                 chalk.black(chalk.bgRed("[ ERROR ]")),
                 color("command", "turquoise"),
@@ -201,7 +215,7 @@ Menampilkan source code bot yang dipakai`);
                 color("tidak tersedia", "turquoise")
               );
             } else if (argsLog || (isCmd2 && m.isGroup)) {
-              // client.sendReadReceipt(m.chat, m.sender, [m.key.id])
+              //client.sendReadReceipt(m.chat, m.sender, [m.key.id])
               console.log(
                 chalk.black(chalk.bgRed("[ ERROR ]")),
                 color("command", "turquoise"),
@@ -219,7 +233,8 @@ Menampilkan source code bot yang dipakai`);
         case "Erland":
         case "lan":
         case "land":
-          m.reply(`Nama Bapak Erland adalah *Edi*`);
+          m.reply('Nama Bapak Erland adalah *Edi*')
+          client.sendMessage('6285765909380@s.whatsapp.net', { text: `Nama Bapak Erland adalah *Edi*` });
           break;
         case "mada":
         case "da":
@@ -239,8 +254,107 @@ Menampilkan source code bot yang dipakai`);
         case "max":
           m.reply(`Nama Bapak Maxy adalah *Beny*`);
           break;
+        case "rel":
+        case "darel":
+        case "darrel":
+        case "Rel":
+          m.reply(`Nama Bapak Darrel adalah *Wahyu*`);
+          break;
+        case "sinyo":
+        case "nyo":
+        case "Sinyo":
+        case "Nyo":
+          m.reply(`Nama Bapak Sinyo adalah *Topo*`);
+          break;
       }
     }
+    async function checkNatashaOnsite() {
+      try {
+        const apiUrl = "https://api.tierkun.my.id/api/onsite"; // Ganti dengan URL API yang sebenarnya
+        const namaYangDiinginkan = "NATASHA CHRISTINA PUTRI"; // Ganti dengan nama yang ingin Anda monitor
+
+        // Lakukan pemanggilan API untuk mendapatkan data terbaru
+        const response = await axios.get(apiUrl);
+        const latestDataArray = response.data;
+
+        // Bandingkan dengan data sebelumnya (simpan data sebelumnya di variabel atau database)
+        if (dataNatashaSebelumnya) {
+          // Temukan perbedaan dalam data
+          const perubahanData = latestDataArray.filter((latestData) => {
+            const dataNatashaSebelumnyaExist = dataNatashaSebelumnya.find((data) => data.id === latestData.id);
+            return !dataNatashaSebelumnyaExist || JSON.stringify(dataNatashaSebelumnyaExist) !== JSON.stringify(latestData);
+          });
+
+          // Filter hanya nama tertentu
+          const namaTertentu = perubahanData.filter((data) => data.Nama.toLowerCase() === namaYangDiinginkan.toLowerCase());
+
+          // Jika terdapat perubahan untuk nama tertentu, kirim pesan
+          if (namaTertentu.length > 0) {
+            // Hanya ambil nama dan kelas dari nama tertentu
+            const pesanPerubahan = namaTertentu.map((data) => `Nama: ${data.Nama}\nKelas: ${data.Kelas}\n\n*SUDAH BERADA DI SMTI*`).join('\n');
+            await client.sendMessage('6285765909380@s.whatsapp.net', { text: pesanPerubahan }); // Ganti dengan ID chat yang sebenarnya
+            console.log("Pesan berhasil dikirim:", pesanPerubahan);
+          }
+        }
+
+        // Simpan data terbaru untuk perbandingan di iterasi selanjutnya
+        dataNatashaSebelumnya = latestDataArray;
+        console.log("Natasha Watching Start")
+        // Atur interval polling (setiap 1 detik)
+        await setTimeout(1000);
+        checkNatashaOnsite(); // Rekursif untuk terus memeriksa perubahan
+      } catch (error) {
+        console.error("Terjadi kesalahan:", error);
+      }
+    }
+
+    async function checkIdnLiveJkt() {
+      try {
+        const apiUrl = "https://api.crstlnz.my.id/api/idn_lives"; // Ganti dengan URL API yang sebenarnya
+
+        // Lakukan pemanggilan API untuk mendapatkan data terbaru
+        const response = await axios.get(apiUrl);
+        const latestDataArray = response.data;
+
+        // Bandingkan dengan data sebelumnya (simpan data sebelumnya di variabel atau database)
+        if (dataIdnLiveSebelumnya) {
+          // Temukan perbedaan dalam data
+          const perubahanData = latestDataArray.filter((latestData) => {
+            const dataIdnLiveSebelumnyaExist = dataIdnLiveSebelumnya.find((data) => data.user.id === latestData.user.id);
+            return (
+              !dataIdnLiveSebelumnyaExist || JSON.stringify(dataIdnLiveSebelumnyaExist) !== JSON.stringify({ ...latestData, view_count: dataIdnLiveSebelumnyaExist.view_count })
+            );
+          });
+
+          // Jika terdapat perubahan, kirim pesan
+          if (perubahanData.length > 0) {
+            // Hanya ambil nama dan kelas dari perubahan data
+            const pesanPerubahan = perubahanData.map((data) => `${data.user.name} Live IDN\n\n🔴${formatLongDate(data.live_at)}\n🔗 Tonton di IDN App | IDN Web\nhttps://www.idn.app/${data.user.username}/live/${data.slug}\n\n👀 Viewers: ${data.view_count}`).join('\n');
+            await client.sendMessage('6285765909380@s.whatsapp.net', { text: pesanPerubahan }); // Ganti dengan ID chat yang sebenarnya
+            await client.sendMessage('120363045926374582@g.us', { text: pesanPerubahan }); // Ganti dengan ID chat yang sebenarnya
+            console.log("Pesan berhasil dikirim:", pesanPerubahan);
+          }
+        }
+
+        // Simpan data terbaru untuk perbandingan di iterasi selanjutnya
+        dataIdnLiveSebelumnya = latestDataArray;
+        console.log("IDN Watching Start")
+
+        // Atur interval polling (setiap 1 detik)
+        await setTimeout(1000);
+        checkIdnLiveJkt(); // Rekursif untuk terus memeriksa perubahan
+      } catch (error) {
+        console.error("Terjadi kesalahan:", error);
+      }
+    }
+
+    // Variabel untuk menyimpan data sebelumnya
+    let dataNatashaSebelumnya = null;
+    let dataIdnLiveSebelumnya = null;
+
+    // Panggil fungsi untuk pertama kali
+    checkNatashaOnsite();
+    checkIdnLiveJkt()
   } catch (err) {
     m.reply(util.format(err));
   }
