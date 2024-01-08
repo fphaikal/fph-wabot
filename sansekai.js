@@ -308,49 +308,64 @@ Menampilkan source code bot yang dipakai`);
       }
     }
 
+    let dataIdnLiveSebelumnya = []
+
     async function checkIdnLiveJkt() {
       try {
         const apiUrl = "https://api.crstlnz.my.id/api/idn_lives"; // Ganti dengan URL API yang sebenarnya
-
+    
         // Lakukan pemanggilan API untuk mendapatkan data terbaru
         const response = await axios.get(apiUrl);
         const latestDataArray = response.data;
-
-        // Bandingkan dengan data sebelumnya (simpan data sebelumnya di variabel atau database)
-        if (dataIdnLiveSebelumnya) {
-          // Temukan perbedaan dalam data
-          const perubahanData = latestDataArray.filter((latestData) => {
-            const dataIdnLiveSebelumnyaExist = dataIdnLiveSebelumnya.find((data) => data.user.id === latestData.user.id);
-            return (
-              !dataIdnLiveSebelumnyaExist || JSON.stringify(dataIdnLiveSebelumnyaExist) !== JSON.stringify({ ...latestData, view_count: dataIdnLiveSebelumnyaExist.view_count })
-            );
+    
+        // Temukan perbedaan dalam data
+        const userIDsSebelumnya = dataIdnLiveSebelumnya.map((data) => data.user.id);
+        const userIDsSekarang = latestDataArray.map((data) => data.user.id);
+    
+        const userIDsBaru = userIDsSekarang.filter((userID) => !userIDsSebelumnya.includes(userID));
+        const userIDsHilang = userIDsSebelumnya.filter((userID) => !userIDsSekarang.includes(userID));
+    
+        // Jika terdapat perubahan, kirim pesan
+        if (userIDsBaru.length > 0 || userIDsHilang.length > 0) {
+          const pesanPerubahan = [];
+    
+          // Buat map untuk menyimpan nama member dan apakah sudah pernah dikirim pesan
+          const namaMemberSudahTerkirim = new Map();
+    
+          userIDsBaru.forEach((userIDBaru) => {
+            const userBaru = latestDataArray.find((data) => data.user.id === userIDBaru);
+            const namaMember = userBaru.user.name;
+    
+            // Jika nama member belum pernah dikirim pesan, kirim pesan
+            if (!namaMemberSudahTerkirim.has(namaMember)) {
+              pesanPerubahan.push(`${userBaru.image}`)
+              pesanPerubahan.push(`${userBaru.user.name} Live IDN\n\n${formatLongDate(userBaru.live_at)}\n Tonton di IDN App | IDN Web\nhttps://www.idn.app/${userBaru.user.username}/live/${userBaru.slug}`);
+    
+              namaMemberSudahTerkirim.set(namaMember, true);
+            }
           });
-
-          // Jika terdapat perubahan, kirim pesan
-          if (perubahanData.length > 0) {
-            // Hanya ambil nama dan kelas dari perubahan data
-            const pesanPerubahan = perubahanData.map((data) => `${data.user.name} Live IDN\n\n🔴${formatLongDate(data.live_at)}\n🔗 Tonton di IDN App | IDN Web\nhttps://www.idn.app/${data.user.username}/live/${data.slug}\n\n👀 Viewers: ${data.view_count}`).join('\n');
-            await client.sendMessage('6285765909380@s.whatsapp.net', { text: pesanPerubahan }); // Ganti dengan ID chat yang sebenarnya
-            await client.sendMessage('120363045926374582@g.us', { text: pesanPerubahan }); // Ganti dengan ID chat yang sebenarnya
-            console.log("Pesan berhasil dikirim:", pesanPerubahan);
-          }
+    
+          // Kirim pesan
+          await client.sendImage('6285765909380@s.whatsapp.net', { text: pesanPerubahan.join('\n') });
+          console.log("Pesan perubahan berhasil dikirim:", pesanPerubahan.join('\n'));
         }
-
+    
+    
         // Simpan data terbaru untuk perbandingan di iterasi selanjutnya
         dataIdnLiveSebelumnya = latestDataArray;
         console.log("IDN Watching Start")
-
+    
         // Atur interval polling (setiap 1 detik)
-        await setTimeout(1000);
+        await setTimeout(1500);
         checkIdnLiveJkt(); // Rekursif untuk terus memeriksa perubahan
       } catch (error) {
         console.error("Terjadi kesalahan:", error);
       }
     }
+    
 
     // Variabel untuk menyimpan data sebelumnya
     let dataNatashaSebelumnya = null;
-    let dataIdnLiveSebelumnya = null;
 
     // Panggil fungsi untuk pertama kali
     checkNatashaOnsite();
